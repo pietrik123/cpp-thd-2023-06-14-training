@@ -35,6 +35,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()
 
 add_subdirectory(threads)
+add_subdirectory(jthread)
 add_subdirectory(threads-exceptions)
 add_subdirectory(synchronization-locking)
 add_subdirectory(event-synchronization)
