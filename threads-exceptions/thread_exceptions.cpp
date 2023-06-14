@@ -8,7 +8,24 @@
 
 using namespace std::literals;
 
-void background_work(size_t id, const std::string& text, char& result)
+template <typename T>
+struct ThreadResult
+{
+    T value;
+    std::exception_ptr eptr;
+
+    T& get()
+    {
+        if (eptr)
+        {
+            std::rethrow_exception(eptr);
+        }
+
+        return value;
+    }
+};
+
+void background_work(size_t id, const std::string& text, ThreadResult<char>& result)
 {
     std::cout << "bw#" << id << " has started..." << std::endl;
 
@@ -19,7 +36,14 @@ void background_work(size_t id, const std::string& text, char& result)
         std::this_thread::sleep_for(100ms);
     }
 
-    result = text.at(5); // potential exception
+    try
+    {
+        result.value = text.at(5); // potential exception
+    }
+    catch (...)
+    {
+        result.eptr = std::current_exception();
+    }
 
     std::cout << "bw#" << id << " is finished..." << std::endl;
 }
@@ -29,7 +53,29 @@ int main()
     std::cout << "Main thread starts..." << std::endl;
     const std::string text = "Hello Threads";
 
-    // TODO
+    std::vector<ThreadResult<char>> results(2);
 
-    std::cout << "Main thread ends..." << std::endl;
+    std::thread thd_1{&background_work, 1, "multithreading", std::ref(results[0])}; // OK
+    std::thread thd_2{&background_work, 2, "abc", std::ref(results[1])};            // Failure
+    thd_1.join();
+    thd_2.join();
+
+    for (auto& result : results)
+    {
+        try
+        {
+            auto& r = result.get();
+            std::cout << "result: " << r << "\n";
+        }
+        catch (const std::out_of_range& e)
+        {
+            // exception handling
+            std::cout << "Caught an exception: " << e.what() << "\n";
+        }
+        catch (const std::exception& e)
+        {
+            // exception handling
+            std::cout << "Caught an exception: " << e.what() << "\n";
+        }
+    }
 }
