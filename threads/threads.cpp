@@ -49,12 +49,38 @@ public:
     }
 };
 
+struct X
+{
+    void f(int arg) const {}
+};
+
+void may_throw()
+{
+    throw std::runtime_error("Error#13");
+}
+
+std::atomic<int> create_counter()
+{
+    return std::atomic<int>{0};  // prvalue - RVO
+}
+
+std::thread create_thread(const std::string& text)
+{
+    static int id_gen = 665;
+    //return std::thread{&background_work, ++id_gen, text, 100ms}; // prvalue - RVO
+    return std::thread{[text] { background_work(++id_gen, text, 100ms); }}; // capture by value is safer - avoid dangling references!!!
+
+    // std::thread thd{&background_work, ++id_gen, text, 100ms};
+    // return thd; // lvalue - probably NRVO
+}
+
 int main()
 {
     std::cout << "Main thread starts..." << std::endl;
     const std::string text = "Hello Threads";
 
     std::thread thd_empty;
+    thd_empty = std::thread{&background_work, 0, "no-longer-empty", 200ms};
 
     std::cout << "thd_empty.id = " << thd_empty.get_id() << "\n";
 
@@ -69,14 +95,54 @@ int main()
 
     // Option 3 - lambda expression
     const int id = 5;
-    const std::string text = "TEXT";
     std::thread thd_5{[id, &text](){ background_work(id, text, 400ms); }}; 
 
-    thd_1.join();
-    thd_2.join();
-    thd_3.join();
-    thd_4.join();
-    thd_5.join();
+    X obj;
+    auto functor_f = std::mem_fn(&X::f);
+    functor_f(obj, 42); // obj.f()
+    std::thread thd_6{functor_f, std::ref(obj), 42};
+    std::thread thd_7{[obj = std::move(obj)] { obj.f(42); }};
+
+    //may_throw();
+    std::thread thd_8 = create_thread("THD8");
+
+    thd_1.detach();
+    std::vector<std::thread> thds;
+    thds.push_back(std::move(thd_empty));
+    thds.push_back(std::move(thd_2));
+    thds.push_back(std::move(thd_3));
+    thds.push_back(std::move(thd_4));
+    thds.push_back(std::move(thd_5));
+    thds.push_back(std::move(thd_6));
+    thds.push_back(std::move(thd_7));
+    thds.push_back(std::move(thd_8));
+
+
+    for(auto& thd : thds)
+    {
+        if (thd.joinable())
+            thd.join();
+    }
+    
+    /////////////////////////////////////////////////////////////
+    
+    const std::vector source = {1, 2, 3, 4, 5, 6};
+    std::vector<int> target_1(source.size());
+    std::vector<int> target_2(source.size());
+
+    std::thread thd_copy_1{[&source, &target_1] { std::copy(source.begin(), source.end(), target_1.begin()); } };
+    std::thread thd_copy_2{[&source, &target_2] { std::copy(source.begin(), source.end(), target_2.begin()); } };
+
+    thd_copy_1.join();
+    thd_copy_2.join();
+
+    for(const auto& item : target_1)
+        std::cout << item << " ";
+    std::cout << "\n";
+
+    for(const auto& item : target_2)
+        std::cout << item << " ";
+    std::cout << "\n";
 
     std::cout << "Main thread ends..." << std::endl;
 }
