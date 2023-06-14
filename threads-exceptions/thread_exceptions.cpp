@@ -50,6 +50,8 @@ void background_work(size_t id, const std::string& text, ThreadResult<char>& res
 
 int main()
 {
+    std::cout << "No of cores: " << std::max(1u, std::thread::hardware_concurrency()) << "\n";
+
     std::cout << "Main thread starts..." << std::endl;
     const std::string text = "Hello Threads";
 
