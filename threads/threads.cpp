@@ -6,6 +6,8 @@
 #include <thread>
 #include <vector>
 
+#include "joining_thread.hpp"
+
 using namespace std::literals;
 
 void background_work(size_t id, const std::string& text, std::chrono::milliseconds delay)
@@ -89,7 +91,7 @@ int main()
     std::thread thd_2{&background_work, 2, "multi", 150ms};
 
     // Option 2 - functor
-    BackgroundWork bw{3, "BACKGROUN_DWORK"}; // bw - lvalue
+    BackgroundWork bw{3, "BACKGROUND_DWORK"}; // bw - lvalue
     std::thread thd_3{std::cref(bw)};
     std::thread thd_4{BackgroundWork(4, "bw4"), 300ms}; // BackgroundWork(4, "bw4") is rvalue -> move semantics
 
@@ -117,7 +119,6 @@ int main()
     thds.push_back(std::move(thd_7));
     thds.push_back(std::move(thd_8));
 
-
     for(auto& thd : thds)
     {
         if (thd.joinable())
@@ -130,12 +131,11 @@ int main()
     std::vector<int> target_1(source.size());
     std::vector<int> target_2(source.size());
 
-    std::thread thd_copy_1{[&source, &target_1] { std::copy(source.begin(), source.end(), target_1.begin()); } };
-    std::thread thd_copy_2{[&source, &target_2] { std::copy(source.begin(), source.end(), target_2.begin()); } };
-
-    thd_copy_1.join();
-    thd_copy_2.join();
-
+    {
+        ext::joining_thread thd_copy_1{[&source, &target_1] { std::copy(source.begin(), source.end(), target_1.begin()); } };
+        ext::joining_thread thd_copy_2{[&source, &target_2] { std::copy(source.begin(), source.end(), target_2.begin()); } };
+    }
+    
     for(const auto& item : target_1)
         std::cout << item << " ";
     std::cout << "\n";
