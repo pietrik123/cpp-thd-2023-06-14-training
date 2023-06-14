@@ -39,10 +39,14 @@ int main()
 {
     {
         Data data;
-        std::jthread thd_producer{[&data] { data.read(); }};
+        std::thread thd_producer{[&data] { data.read(); }};
 
-        std::jthread thd_consumer_1{[&data] { data.process(1); }};
-        std::jthread thd_consumer_2{[&data] { data.process(2); }};
+        std::thread thd_consumer_1{[&data] { data.process(1); }};
+        std::thread thd_consumer_2{[&data] { data.process(2); }};
+
+        thd_producer.join();
+        thd_consumer_1.join();
+        thd_consumer_2.join();
     }
 
     std::cout << "END of main..." << std::endl;
