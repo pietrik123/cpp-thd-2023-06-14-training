@@ -117,6 +117,28 @@ void calc_hits_with_mutex(const uintmax_t count, SynchronizedValue<uintmax_t>& h
     }
 }
 
+void calc_hits_with_atomic(const uintmax_t count, std::atomic<uintmax_t>& hits)
+{
+    std::mt19937_64 rnd_gen(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    std::uniform_real_distribution<double> rnd(0, 1.0);
+
+    //uintmax_t local_hits{};
+    for (uintmax_t n = 0; n < count; ++n)
+    {
+        double x = rnd(rnd_gen);
+        double y = rnd(rnd_gen);
+        if (x * x + y * y < 1)
+        {            
+            hits.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+
+    // {
+    //     auto lck = hits.with_lock();
+    //     hits.value += local_hits;
+    // }
+}
+
 int main()
 {
     std::cout << "No of cores: " << std::max(1u, std::thread::hardware_concurrency()) << "\n";
@@ -291,6 +313,38 @@ int main()
         auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
         std::cout << "Pi (mutex) = " << pi << std::endl;
+        std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
+    }
+
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
+
+    {
+        const auto no_of_cores = std::max(1u, std::thread::hardware_concurrency());
+
+        const uintmax_t n_per_thread = N / no_of_cores;
+
+        std::vector<std::thread> threads;
+        std::atomic<uintmax_t> hits{};
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        for (auto i = 0; i < no_of_cores; i++)
+        {
+            threads.emplace_back(&calc_hits_with_atomic, n_per_thread, std::ref(hits));
+        }
+
+        for (auto& th : threads)
+        {
+            th.join();
+        }
+
+        const double pi = static_cast<double>(hits.load()) / N * 4;
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+        std::cout << "Pi (atomic) = " << pi << std::endl;
         std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
     }
 }
