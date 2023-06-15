@@ -91,7 +91,7 @@ struct SynchronizedValue
 
     std::lock_guard<TMutex> with_lock() // since C++17
     {
-        return std::lock_guard{mtx_value};
+        return std::lock_guard{mtx_value}; // prvalue
     }
 };
 
