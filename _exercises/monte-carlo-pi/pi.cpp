@@ -12,6 +12,17 @@ using namespace std::literals;
  * https://academo.org/demos/estimating-pi-monte-carlo
  ******************************************************/
 
+void calc_hits(uintmax_t n_per_thread, uintmax_t& counter)
+{
+    for (uintmax_t n = 0; n < n_per_thread; ++n)
+    {
+        double x = rand() / static_cast<double>(RAND_MAX);
+        double y = rand() / static_cast<double>(RAND_MAX);
+        if (x * x + y * y < 1)
+            counter++;
+    }
+}
+
 int main()
 {
     std::cout << "No of cores: " << std::max(1u, std::thread::hardware_concurrency()) << "\n";
@@ -29,13 +40,7 @@ int main()
 
         uintmax_t hits = 0;
 
-        for (uintmax_t n = 0; n < N; ++n)
-        {
-            double x = rand() / static_cast<double>(RAND_MAX);
-            double y = rand() / static_cast<double>(RAND_MAX);
-            if (x * x + y * y < 1)
-                hits++;
-        }
+        calc_hits(N, hits);
 
         const double pi = static_cast<double>(hits) / N * 4;
 
@@ -51,26 +56,16 @@ int main()
     {
         const auto no_of_cores = std::max(1u, std::thread::hardware_concurrency());
 
-        const auto n_per_thread = N / no_of_cores;
+        const uintmax_t n_per_thread = N / no_of_cores;
 
         std::vector<std::thread> threads;
         std::vector<uintmax_t> hits_per_thread(no_of_cores);
-
-        auto calc_hits = [n_per_thread](uintmax_t& counter) {
-            for (uintmax_t n = 0; n < n_per_thread; ++n)
-            {
-                double x = rand() / static_cast<double>(RAND_MAX);
-                double y = rand() / static_cast<double>(RAND_MAX);
-                if (x * x + y * y < 1)
-                    counter++;
-            }
-        };
 
         auto start = std::chrono::high_resolution_clock::now();
 
         for (auto i = 0; i < no_of_cores; i++)
         {
-            threads.emplace_back(calc_hits, std::ref(hits_per_thread[i]));
+            threads.emplace_back(&calc_hits, n_per_thread, std::ref(hits_per_thread[i]));
         }
 
         for (auto& th : threads)
