@@ -12,14 +12,7 @@
 
 using namespace std::literals;
 
-struct X
-{
-    int s;
-    char c;
-};
-
-std::mutex mtx_global_flag;
-bool global_flag = false;
+std::atomic<bool> global_flag{false};
 
 class Data
 {
@@ -37,10 +30,7 @@ public:
         std::this_thread::sleep_for(2s);
         std::cout << "End reading..." << std::endl;
 
-        {
-            std::lock_
-        global_flag = true;
-        }
+        global_flag = true; // global_flag.store(true);
     
         //is_data_ready_ = true; 
         is_data_ready_.store(true, std::memory_order_release); // one-way barrier         
@@ -64,7 +54,7 @@ int main()
         std::thread thd_consumer_1{[&data] { data.process(1); }};
         std::thread thd_consumer_2{[&data] { data.process(2); }};
 
-        std::cout << global_flag << "\n";
+        std::cout << global_flag.load() << "\n";
 
         thd_producer.join();
         thd_consumer_1.join();

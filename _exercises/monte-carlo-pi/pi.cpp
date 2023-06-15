@@ -122,21 +122,19 @@ void calc_hits_with_atomic(const uintmax_t count, std::atomic<uintmax_t>& hits)
     std::mt19937_64 rnd_gen(std::hash<std::thread::id>{}(std::this_thread::get_id()));
     std::uniform_real_distribution<double> rnd(0, 1.0);
 
-    //uintmax_t local_hits{};
+    uintmax_t local_hits{};
     for (uintmax_t n = 0; n < count; ++n)
     {
         double x = rnd(rnd_gen);
         double y = rnd(rnd_gen);
         if (x * x + y * y < 1)
         {            
-            hits.fetch_add(1, std::memory_order_relaxed);
+            ++local_hits;
+            
         }
     }
 
-    // {
-    //     auto lck = hits.with_lock();
-    //     hits.value += local_hits;
-    // }
+    hits += local_hits;
 }
 
 int main()
