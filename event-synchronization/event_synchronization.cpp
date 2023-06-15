@@ -8,13 +8,20 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 using namespace std::literals;
+
+struct X
+{
+    int s;
+    char c;
+};
 
 class Data
 {
     std::vector<int> data_;
-    // TODO
+    std::atomic<bool> is_data_ready_ = false;
 
 public:
     void read()
@@ -26,10 +33,15 @@ public:
         std::generate(begin(data_), end(data_), [&rnd] { return rnd() % 1000; });
         std::this_thread::sleep_for(2s);
         std::cout << "End reading..." << std::endl;
+    
+        is_data_ready_ = true;
+        // ...
     }
 
     void process(int id)
     {
+        while (!is_data_ready_) {} // busy wait
+
         long sum = std::accumulate(begin(data_), end(data_), 0L);
         std::cout << "Id: " << id << "; Sum: " << sum << std::endl;
     }
