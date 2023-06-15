@@ -6,17 +6,17 @@
 #include <random>
 #include <thread>
 
-using namespace std;
+using namespace std::literals;
 
 /*******************************************************
  * https://academo.org/demos/estimating-pi-monte-carlo
- * *****************************************************/
+ ******************************************************/
 
 int main()
 {
     std::cout << "No of cores: " << std::max(1u, std::thread::hardware_concurrency()) << "\n";
 
-    const long N = 100'000'000;
+    const uintmax_t N = 100'000'000;
 
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
@@ -24,12 +24,12 @@ int main()
         //////////////////////////////////////////////////////////////////////////////
         // single thread
 
-        cout << "Pi calculation started!" << endl;
-        const auto start = chrono::high_resolution_clock::now();
+        std::cout << "Pi calculation started!" << std::endl;
+        const auto start = std::chrono::high_resolution_clock::now();
 
-        long hits = 0;
+        uintmax_t hits = 0;
 
-        for (long n = 0; n < N; ++n)
+        for (uintmax_t n = 0; n < N; ++n)
         {
             double x = rand() / static_cast<double>(RAND_MAX);
             double y = rand() / static_cast<double>(RAND_MAX);
@@ -39,25 +39,25 @@ int main()
 
         const double pi = static_cast<double>(hits) / N * 4;
 
-        const auto end = chrono::high_resolution_clock::now();
-        const auto elapsed_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+        const auto end = std::chrono::high_resolution_clock::now();
+        const auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        cout << "Pi (sync) = " << pi << endl;
-        cout << "Elapsed = " << elapsed_time << "ms" << endl;
+        std::cout << "Pi (sync) = " << pi << std::endl;
+        std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
     }
 
-    //////////////////////////////////////////////////////////////////////////////
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
 
     {
-        const auto numOfCores = std::max(1u, std::thread::hardware_concurrency());
+        const auto no_of_cores = std::max(1u, std::thread::hardware_concurrency());
 
-        const auto n_per_thread = N / numOfCores;
+        const auto n_per_thread = N / no_of_cores;
 
         std::vector<std::thread> threads;
-        std::vector<long> hitsVect(numOfCores);
+        std::vector<uintmax_t> hits_per_thread(no_of_cores);
 
-        auto calcFunction = [n_per_thread](long& counter) {
-            for (long n = 0; n < n_per_thread; ++n)
+        auto calc_hits = [n_per_thread](uintmax_t& counter) {
+            for (uintmax_t n = 0; n < n_per_thread; ++n)
             {
                 double x = rand() / static_cast<double>(RAND_MAX);
                 double y = rand() / static_cast<double>(RAND_MAX);
@@ -66,11 +66,11 @@ int main()
             }
         };
 
-        auto start = chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now();
 
-        for (auto i = 0; i < numOfCores; i++)
+        for (auto i = 0; i < no_of_cores; i++)
         {
-            threads.emplace_back(calcFunction, std::ref(hitsVect[i]));
+            threads.emplace_back(calc_hits, std::ref(hits_per_thread[i]));
         }
 
         for (auto& th : threads)
@@ -78,20 +78,20 @@ int main()
             th.join();
         }
 
-        long hits = 0;
+        uintmax_t hits = 0;
 
-        for (const auto& item : hitsVect)
+        for (const auto& item : hits_per_thread)
         {
             hits += item;
         }
 
         const double pi = static_cast<double>(hits) / N * 4;
 
-        auto end = chrono::high_resolution_clock::now();
+        auto end = std::chrono::high_resolution_clock::now();
 
-        auto elapsed_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        cout << "Pi (multi) = " << pi << endl;
-        cout << "Elapsed = " << elapsed_time << "ms" << endl;
+        std::cout << "Pi (multi) = " << pi << std::endl;
+        std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
     }
 }
