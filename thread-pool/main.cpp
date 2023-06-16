@@ -3,7 +3,9 @@
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <future>
 #include <iostream>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -24,11 +26,28 @@ void background_work(size_t id, const std::string& text, std::chrono::millisecon
     std::cout << "bw#" << id << " is finished..." << std::endl;
 }
 
+int calculate_square(int x)
+{
+    std::cout << "Starting calculation for " << x << " in " << std::this_thread::get_id() << std::endl;
+
+    std::random_device rd;
+    std::uniform_int_distribution<> distr(100, 5000);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(distr(rd)));
+
+    if (x % 3 == 0)
+        throw std::runtime_error("Error#3");
+
+    return x * x;
+}
+
 using Task = std::function<void()>;
+// using Task = folly::Function<void()>;
 
 class ThreadPool
 {
     static constexpr nullptr_t end_of_work{};
+
 public:
     explicit ThreadPool(uint32_t size)
         : threads_(size)
@@ -39,16 +58,23 @@ public:
         }
     }
 
+    template <typename F>
+    auto submit(F&& f)
+    {
+        using ResultT = decltype(f());
+        auto pt = std::make_shared<std::packaged_task<ResultT()>>(std::forward<F>(f));
+        auto f_result = pt->get_future();
+
+        tsq_.push([pt]() mutable { (*pt)(); });
+
+        return f_result;
+    }
+
     ~ThreadPool()
     {
-        // for(size_t i = 0; i < threads_.size(); ++i)
-        // {
-        //     submit([this] { keep_running = false; });
-        // }
-
         for (size_t i = 0; i < threads_.size(); ++i)
         {
-            tsq_.push(end_of_work);
+            submit([this] { keep_running = false; });
         }
 
         for (auto& thd : threads_)
@@ -57,36 +83,17 @@ public:
         }
     }
 
-    void submit(Task tsk)
-    {
-        if (!tsk)
-            throw std::invalid_argument("Empty function not allowed");
-        
-        tsq_.push(tsk);
-    }
-
-private:    
+private:
     std::vector<std::thread> threads_;
     ThreadSafeQueue<Task> tsq_;
-    // std::atomic<bool> keep_running = true;
+    std::atomic<bool> keep_running = true;
 
     void run()
     {
-        // while (keep_running)
-        // {
-        //     Task t;
-        //     tsq_.pop(t);
-        //     t();
-        // }
-
-        while (true)
+        while (keep_running)
         {
             Task t;
             tsq_.pop(t);
-            
-            if (t == end_of_work)
-                return;
-            
             t();
         }
     }
@@ -105,8 +112,12 @@ int main()
         thd_pool.submit([] { background_work(1, "Text#1", 200ms); });
         thd_pool.submit([] { background_work(2, "Text#2", 200ms); });
 
+        std::future<int> f = thd_pool.submit([] { return calculate_square(13); });
+
         for (int i = 3; i < 20; ++i)
             thd_pool.submit([i]() { background_work(i, "Text#" + std::to_string(i), 150ms); });
+
+        std::cout << "13 * 13 = " << f.get() << std::endl;
     }
 
     std::cout << "Main thread ends..." << std::endl;
