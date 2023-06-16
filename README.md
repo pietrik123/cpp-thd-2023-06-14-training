@@ -1,8 +1,12 @@
 # Szkolenie - Programowanie wielowątkowe w C++ #
 
+## Ankieta
+* https://forms.gle/PL9h3p6roLSWmYkj9
+
 ## Dokumentacja + slajdy
 
 * https://cpp-thd.infotraining.pl
+* https://drive.google.com/file/d/1B101cQuxPd8a_mLr8WLMqCDgURLGB28f/view?usp=sharing
 
 ## Konfiguracja środowiska
 

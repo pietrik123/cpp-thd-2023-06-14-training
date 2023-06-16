@@ -6,6 +6,7 @@
 #include <random>
 #include <thread>
 #include <list>
+#include <future>
 
 using namespace std::literals;
 
@@ -29,6 +30,25 @@ void calc_hits(uintmax_t n_per_thread, uintmax_t& counter)
         if (x * x + y * y < 1)
             counter++;
     }
+}
+
+uintmax_t calculate_hits(uintmax_t n_per_thread)
+{
+    uintmax_t counter{};
+    size_t seed = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    std::mt19937_64 rnd_gen(seed);
+    std::uniform_real_distribution<double> rnd(0, 1.0);
+
+    for (uintmax_t n = 0; n < n_per_thread; ++n)
+    {
+        double x = rnd(rnd_gen);
+        double y = rnd(rnd_gen);
+
+        if (x * x + y * y < 1)
+            counter++;
+    }
+
+    return counter;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -343,6 +363,38 @@ int main()
         auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
         std::cout << "Pi (atomic) = " << pi << std::endl;
+        std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
+    }
+
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
+
+    {
+        const auto no_of_cores = std::max(1u, std::thread::hardware_concurrency());
+
+        const uintmax_t n_per_thread = N / no_of_cores;
+
+        std::vector<std::future<uintmax_t>> hits_futures;
+        uintmax_t hits{};
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        for (auto i = 0; i < no_of_cores; i++)
+        {
+            hits_futures.push_back(std::async(std::launch::async, calculate_hits, n_per_thread));
+        }
+
+        for (auto& hits_future : hits_futures)
+        {
+            hits += hits_future.get();
+        }
+
+        const double pi = static_cast<double>(hits) / N * 4;
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+        std::cout << "Pi (futures) = " << pi << std::endl;
         std::cout << "Elapsed = " << elapsed_time << "ms" << std::endl;
     }
 }
