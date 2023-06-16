@@ -48,6 +48,29 @@ template <typename Task>
     return f;
 }
 
+class SquareCalculator
+{
+    std::promise<int> promise_;
+public:
+    void calculate(int x)
+    {
+        try
+        {
+            int result = calculate_square(x);
+            promise_.set_value(result);
+        }
+        catch(...)
+        {
+            promise_.set_exception(std::current_exception());
+        }        
+    }
+
+    std::future<int> get_future()
+    {
+        return promise_.get_future();
+    }
+};
+
 int main()
 {
     std::future<int> f1 = std::async(std::launch::deferred, calculate_square, 11);
@@ -142,4 +165,15 @@ int main()
 
         fst1.wait(); // waiting for finishing the task
     }
+
+    std::cout << "\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" << std::endl;
+
+    SquareCalculator calc;
+
+    auto f_result = calc.get_future();
+
+    std::thread thd_calc{[&calc] { calc.calculate(13); }};
+    thd_calc.join();
+
+    std::cout << "SquareCalculator returned: " << f_result.get() << "\n";
 }
